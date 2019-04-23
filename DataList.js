@@ -1,14 +1,14 @@
 import React, {Component} from 'react';
 import {FlatList, StyleSheet, Text, View} from 'react-native';
 import PaperEntry from './PaperEntry'
-
+import {createBottomTabNavigator, createStackNavigator, createAppContainer} from 'react-navigation';
 
 export default class DataList extends Component<Props> {
 
   constructor(props) {
     super(props);
     this.onEndReachedCalledDuringMomentum = true;
-    this.state = {data:[], refreshing: false};
+    this.state = {data:[], refreshing: false, feedUpdatedDate:''};
   }
 
   renderHeader = () => {
@@ -18,7 +18,7 @@ export default class DataList extends Component<Props> {
         ArXiv Reader
       </Text>
       <Text style={styles.lastUpdated}>
-        Last Updated on: 12/31/1999 12:00 AM
+        {this.state.feedUpdatedDate}
       </Text>
       </View>
     );
@@ -30,10 +30,7 @@ export default class DataList extends Component<Props> {
     );
   };
 
-  refreshData = () => {
-    this.setState({refreshing: true})
-    queryUrl='https://export.arxiv.org/api/query?search_query=cat:astro-ph.CO&start=0&max_results=10&sortBy=lastUpdatedDate&sortOrder=descending'
-
+  dataQuery = (queryUrl) => {
     var XMLParser = require('react-xml-parser');
     var request = new XMLHttpRequest();
     request.onreadystatechange = (e) => {
@@ -42,88 +39,59 @@ export default class DataList extends Component<Props> {
       }
 
       if (request.status === 200) {
-        this.setState({ data:[] })
         var feed = new XMLParser().parseFromString(request.responseText);    // Assume xmlText contains the example XML
 
-        entries = feed.getElementsByTagName('entry')
+        var d = new Date (Date.parse(feed.getElementsByTagName('updated')[0].value))
+        var dt = [d.getMonth()+1,d.getDate(),d.getFullYear()]
+        var feedUpdatedDateStr = dt.map( x => (x<10) ? '0'+x.toString() : x.toString() ).join('/')
+        var entries = feed.getElementsByTagName('entry')
 
-        var title;
-        var key;
-        var authors=[];
         for(var i=0;i<entries.length;i++){
+          var authors=[];
+          var title = entries[i].getElementsByTagName('title')[0].value
+          var key = entries[i].getElementsByTagName('id')[0].value
 
-          title = entries[i].getElementsByTagName('title')[0].value
-          key = entries[i].getElementsByTagName('id')[0].value
-          pdfURL = key.replace('/abs/','/pdf/')+'.pdf'
+          var d = new Date (Date.parse(entries[i].getElementsByTagName('updated')[0].value))
+          var dt = [d.getMonth()+1,d.getDate(),d.getFullYear()]
+          var dateUpdated = dt.map( x => (x<10) ? '0'+x.toString() : x.toString() ).join('/')
+
+          var d = new Date (Date.parse(entries[i].getElementsByTagName('published')[0].value))
+          var dt = [d.getMonth()+1,d.getDate(),d.getFullYear()]
+          var datePublished = dt.map( x => (x<10) ? '0'+x.toString() : x.toString() ).join('/')
+
+          var pdfURL = key.replace('/abs/','/pdf/')+'.pdf'
           var _authors = entries[i].getElementsByTagName('author')
 
           for (var j=0;j<_authors.length;j++){
             authors.push(_authors[j].getElementsByTagName('name')[0].value);
           }
 
-          var maxAuthors=5
-          if(authors.length>maxAuthors){
-            authors = authors.slice(0,maxAuthors)
-            authors.push("et al.")
-          }
-
-          this.setState({ data:[...this.state.data,{key:key, pdfURL:pdfURL, title:title, authors:authors.join(', ')}] })
-          authors=[];
+          this.setState({
+            feedUpdatedDate: feedUpdatedDateStr,
+            data: [ ...this.state.data ,{key: key, datePublished: datePublished, dateUpdated: dateUpdated, pdfURL: pdfURL, title: title, authors: authors.join(', ')} ]
+          })
         }
       } else {
         console.warn('error');
       }
-
       this.setState({refreshing: false})
     };
 
     request.open('GET', queryUrl);
     request.send();
+    this.onEndReachedCalledDuringMomentum = true;
   };
 
-  getMoreData= () => {
-     if (!this.onEndReachedCalledDuringMomentum) {
-    console.log('getting items',this.state.data.length,'to',this.state.data.length+10)
-    queryUrl='https://export.arxiv.org/api/query?search_query=cat:astro-ph.CO&start=' + (this.state.data.length).toString() + '&max_results=10&sortBy=lastUpdatedDate&sortOrder=descending'
+  refreshData = () => {
+    this.setState({ refreshing: true, data: [] })
+    queryUrl='https://export.arxiv.org/api/query?search_query=cat:astro-ph.CO&start=0&max_results=20&sortBy=lastUpdatedDate&sortOrder=descending'
+    this.dataQuery(queryUrl)
+  };
 
-    var XMLParser = require('react-xml-parser');
-    var request = new XMLHttpRequest();
-    request.onreadystatechange = (e) => {
-      if (request.readyState !== 4) {
-        return;
-      }
-
-      if (request.status === 200) {
-        var feed = new XMLParser().parseFromString(request.responseText);    // Assume xmlText contains the example XML
-
-        entries = feed.getElementsByTagName('entry')
-
-        var title;
-        var key;
-        var authors=[];
-        for(var i=0;i<entries.length;i++){
-
-          title = entries[i].getElementsByTagName('title')[0].value
-          key = entries[i].getElementsByTagName('id')[0].value
-          pdfURL = key.replace('/abs/','/pdf/')+'.pdf'
-          var _authors = entries[i].getElementsByTagName('author')
-
-          for (var j=0;j<_authors.length;j++){
-            authors.push(_authors[j].getElementsByTagName('name')[0].value);
-          }
-
-          this.setState({ data:[...this.state.data,{key:key, pdfURL:pdfURL, title:title, authors:authors.join(', ')}] })
-          authors=[];
-        }
-      } else {
-        console.warn('error');
-      }
-
-    };
-
-    request.open('GET', queryUrl);
-    request.send();
-    this.onEndReachedCalledDuringMomentum = true;
+  getMoreData = () => {
+    if (!this.onEndReachedCalledDuringMomentum) {
+      queryUrl='https://export.arxiv.org/api/query?search_query=cat:astro-ph.CO&start=' + (this.state.data.length).toString() + '&max_results=10&sortBy=lastUpdatedDate&sortOrder=descending'
+      this.dataQuery(queryUrl)
     }
   };
 
@@ -133,7 +101,10 @@ export default class DataList extends Component<Props> {
         ListHeaderComponent={this.renderHeader}
         data={this.state.data}
         renderItem={({item}) => (
-          <PaperEntry item={item}/>
+          <PaperEntry
+            navigation={this.props.navigation}
+            item={item}
+          />
         )} 
         ItemSeparatorComponent={this.renderSeparator}
         onRefresh={this.refreshData}
@@ -142,7 +113,7 @@ export default class DataList extends Component<Props> {
         onEndReachedThreshold={0.5}
         onMomentumScrollBegin={() => { this.onEndReachedCalledDuringMomentum = false; }}
         getItemLayout={(data, index) => (
-          {length: 70, offset: 70 * index, index}
+          {length: 90, offset: 90 * index, index}
         )}
       />
     );
