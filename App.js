@@ -1,11 +1,19 @@
 import { Buffer } from 'buffer';
 global.Buffer = Buffer;
 import React, {Component} from 'react';
-import {ScrollView, SafeAreaView, StyleSheet, Text, View} from 'react-native';
+import {Button, ScrollView, SafeAreaView, StyleSheet, Text, View} from 'react-native';
 import DataList from './DataList';
 import {createBottomTabNavigator, createStackNavigator, createAppContainer} from 'react-navigation';
 
 class HomeScreen extends Component<Props> {
+  static navigationOptions = ({ navigation }) => {
+    return {
+    headerTitle: 'Feed',
+    headerLeft: (<Button title='Settings' onPress={ () => {navigation.navigate('Settings')} }/>),
+    headerRight: (<Text style={styles.feedUpdated}> Updated: {navigation.getParam('feedUpdatedDateStr')} </Text>)
+    }
+  }
+
   render() {
     return (
       <SafeAreaView style={styles.safeArea}>
@@ -26,6 +34,12 @@ class FavoritesScreen extends Component<Props> {
 }
 
 class DetailsScreen extends Component<Props> {
+
+  static navigationOptions = ({ navigation }) => {
+    return {
+      headerRight: (<Text style={styles.feedUpdated}> Updated: {navigation.getParam('item').dateUpdated+'\nPublished: '+navigation.getParam('item').datePublished} </Text>)
+    }
+  }
   
   checkAuthorListLength = (authors) =>{
     console.log(authors)
@@ -41,7 +55,7 @@ class DetailsScreen extends Component<Props> {
   }
 
   render() {
-    const item = this.props.navigation.getParam('item','No abstract!')
+    const item = this.props.navigation.getParam('item')
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={{flex: 0}}>
@@ -58,14 +72,25 @@ class DetailsScreen extends Component<Props> {
   }
 }
 
+class SettingsScreen extends Component<Props> {
+  render() {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <Text>Settings !</Text>
+      </SafeAreaView>
+    );
+  }
+}
+
 const HomeStack = createStackNavigator({
   Home: HomeScreen,
   Details: DetailsScreen,
-}, {headerMode:'none'});
+  Settings: SettingsScreen,
+});
 
 const FavoritesStack = createStackNavigator({
   Favorites: FavoritesScreen,
-}, {headerMode:'none'});
+});
 
 const TabNavigator = createBottomTabNavigator({
   Home: HomeStack,
@@ -126,4 +151,10 @@ const styles = StyleSheet.create({
     marginLeft: '5%',
     marginRight: '5%',
   },
+  feedUpdated:{
+    padding: 5,
+    fontSize: 10,
+    fontStyle: 'italic',
+    color: '#b3b3b3'
+  }
 });

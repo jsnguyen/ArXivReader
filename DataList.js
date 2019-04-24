@@ -33,12 +33,13 @@ export default class DataList extends Component<Props> {
     var d = new Date (Date.parse(result.feed.updated))
     var dt = [d.getMonth()+1,d.getDate(),d.getFullYear()]
     var feedUpdatedDateStr = dt.map( x => (x<10) ? '0'+x.toString() : x.toString() ).join('/')
+    this.props.navigation.navigate('Home',{feedUpdatedDateStr: feedUpdatedDateStr})
 
     var entries = result.feed.entry
 
     for(var i=0;i<entries.length;i++){
       var authors=[];
-      var title = entries[i].title[0].replace(/(\r\n|\n|\r)/gm, " ")
+      var title = entries[i].title[0].replace(/(\r\n|\n|\r)/gm, '')
       var key = entries[i].id[0]
 
       var d = new Date (Date.parse(entries[i].updated[0]))
@@ -52,7 +53,7 @@ export default class DataList extends Component<Props> {
       var pdfURL = key.replace('/abs/','/pdf/')+'.pdf'
       var _authors = entries[i].author
 
-      var summary = entries[i].summary[0].replace(/(\r\n|\n|\r)/gm, " ");
+      var summary = entries[i].summary[0].replace(/(\r\n|\n|\r)/gm, ' ');
 
       for (var j=0;j<_authors.length;j++){
         authors.push(_authors[j].name[0])
